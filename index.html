@@ -1,0 +1,355 @@
+<title>Pelacak Keuangan Bersama</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: banner teal, sidebar bulan di kiri, kartu saldo/pemasukan/pengeluaran + grafik tahunan, sumber pemasukan, kategori pengeluaran, lalu form dan transaksi */
+:root{
+  --bg:#dcebe6; --surface:#ffffff; --ink:#15302b; --ink2:#47615a; --muted:#73877f; --line:#d3e2dc; --grid:#e6efeb;
+  --brand:#0d9488; --brand-ink:#ffffff; --brand-soft:#cdeee8;
+  --inc:#0d9488; --exp:#e0a000; --good:#2a8a4f; --bad:#c23b3b;
+  --c1:#0d9488; --c2:#3cc7c0; --c3:#f2b705; --c4:#6f8fd8; --c5:#e2715b; --c6:#8e6bbf; --c7:#8a9a95;
+  --f-body:'IBM Plex Sans',system-ui,sans-serif; --f-num:'IBM Plex Mono',ui-monospace,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0c1816; --surface:#15231f; --ink:#e6f1ed; --ink2:#a7bdb5; --muted:#7c938b; --line:#25362f; --grid:#1d2c27;
+  --brand:#0f766e; --brand-ink:#ffffff; --brand-soft:#173b36;
+  --inc:#3cc7c0; --exp:#f2b705; --good:#58c07e; --bad:#ef7676;
+  --c1:#2fb3a6; --c2:#5fd6cf; --c3:#f2b705; --c4:#8fa9ea; --c5:#ee8a76; --c6:#ae8ad9; --c7:#9aaba5; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0c1816; --surface:#15231f; --ink:#e6f1ed; --ink2:#a7bdb5; --muted:#7c938b; --line:#25362f; --grid:#1d2c27;
+  --brand:#0f766e; --brand-ink:#ffffff; --brand-soft:#173b36;
+  --inc:#3cc7c0; --exp:#f2b705; --good:#58c07e; --bad:#ef7676;
+  --c1:#2fb3a6; --c2:#5fd6cf; --c3:#f2b705; --c4:#8fa9ea; --c5:#ee8a76; --c6:#ae8ad9; --c7:#9aaba5; color-scheme:dark}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:14px;line-height:1.5;padding-inline:16px;padding-block:20px 40px}
+.wrap{max-width:1120px;margin:0 auto;display:flex;flex-direction:column;gap:12px}
+.banner{background:var(--brand);color:var(--brand-ink);border-radius:10px;padding:16px 20px;display:flex;flex-wrap:wrap;gap:10px;justify-content:space-between;align-items:center}
+.banner h1{font-size:20px;font-weight:600;margin:0;letter-spacing:.01em;text-transform:uppercase}
+.banner p{margin:0;font-size:12.5px;opacity:.9}
+.live{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;background:rgba(255,255,255,.16);padding:4px 10px;border-radius:99px}
+.live i{width:8px;height:8px;border-radius:50%;background:#7dffb3;display:block}
+.live.off i{background:#ffd27d}
+.layout{display:grid;grid-template-columns:150px minmax(0,1fr);gap:12px;align-items:start}
+@media(max-width:820px){.layout{grid-template-columns:minmax(0,1fr)}}
+.side{background:var(--surface);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:6px;border:1px solid var(--line)}
+@media(max-width:820px){.months{display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:6px}}
+.months{display:flex;flex-direction:column;gap:6px}
+.yr{display:flex;align-items:center;justify-content:space-between;font-weight:600}
+.yr button{background:none;border:0;font-size:18px;color:var(--ink2);padding:0 6px;cursor:pointer}
+.mb{background:var(--brand);color:var(--brand-ink);border:0;border-radius:4px;padding:5px 8px;text-align:left;font:inherit;font-size:13px;cursor:pointer;opacity:.72}
+.mb:hover{opacity:.9}
+.mb[aria-pressed="true"]{opacity:1;outline:2px solid var(--ink);outline-offset:1px}
+.main{display:flex;flex-direction:column;gap:12px;min-width:0}
+.row{display:grid;gap:12px;min-width:0}
+.top{grid-template-columns:minmax(0,2fr) minmax(0,3fr)}
+@media(max-width:820px){.top{grid-template-columns:minmax(0,1fr)}}
+.stack{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.stack .wide{grid-column:1 / 3}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px;min-width:0}
+.lbl{font-size:12px;color:var(--muted);margin:0;font-weight:500}
+.big{font-family:var(--f-num);font-size:22px;font-weight:500;margin:4px 0 0;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+.sm{font-size:12.5px;color:var(--ink2);margin:2px 0 0}
+h2{font-size:14px;font-weight:600;margin:0 0 10px;color:var(--brand)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]) h2{color:var(--inc)}}
+:root[data-theme="dark"] h2{color:var(--inc)}
+.num{font-family:var(--f-num);font-variant-numeric:tabular-nums}
+.meter{height:7px;background:var(--grid);border-radius:4px;overflow:hidden;margin-top:8px}
+.meter i{display:block;height:100%;background:var(--exp);border-radius:4px}
+.meter i.over{background:var(--bad)}
+svg{display:block;width:100%;height:auto;overflow:visible}
+svg text{fill:var(--muted);font-family:var(--f-num);font-size:10.5px}
+.legend{display:flex;gap:14px;font-size:12.5px;color:var(--ink2);margin-top:6px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend b{width:14px;height:3px;border-radius:2px;display:block}
+.srcs{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+.src{border:1px solid var(--line);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:2px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+.tile{border-radius:8px;padding:12px 14px;color:#0b1f1b;min-width:0}
+.tile .t{font-size:12.5px;font-weight:500}
+.tile .v{font-family:var(--f-num);font-size:17px;font-weight:500;margin-top:2px;overflow-wrap:anywhere}
+.tile .p{font-size:12px;opacity:.8}
+.empty{color:var(--muted);padding:14px 0;font-size:13px}
+form{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;align-items:end}
+form label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted)}
+button,input,select{font:inherit;color:var(--ink)}
+input,select{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:7px 10px;min-width:0}
+.btn{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:7px 12px;cursor:pointer}
+.btn:hover{border-color:var(--muted)}
+.btn.pri{background:var(--brand);color:var(--brand-ink);border-color:var(--brand);font-weight:500}
+:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+.seg{display:flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.seg button{flex:1;background:var(--surface);border:0;padding:7px 10px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--brand);color:var(--brand-ink)}
+.tablewrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;min-width:520px}
+th{text-align:left;font-weight:500;font-size:12px;color:var(--muted);padding:6px 8px;border-bottom:1px solid var(--line)}
+td{padding:8px;border-bottom:1px solid var(--grid)}
+.r{text-align:right}
+.in{color:var(--good)} .out{color:var(--ink)}
+.chip{display:inline-flex;align-items:center;gap:6px}
+.sw{width:10px;height:10px;border-radius:2px;display:inline-block}
+.x{background:none;border:0;color:var(--muted);padding:2px 6px;border-radius:4px;cursor:pointer}
+.x:hover{color:var(--bad)}
+.head{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+.ctl{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.note{font-size:12.5px;color:var(--ink2);background:var(--brand-soft);border-radius:8px;padding:8px 12px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center}
+.tag{font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:4px;padding:0 5px}
+.tip{position:fixed;pointer-events:none;background:var(--ink);color:var(--bg);padding:6px 10px;border-radius:5px;font-size:12px;z-index:5;line-height:1.5}
+</style>
+
+<div class="wrap">
+  <div class="banner">
+    <div><h1>Pelacak Keuangan</h1><p id="sub">Memuat…</p></div>
+    <div class="ctl">
+      <span class="live off" id="live"><i></i><span id="liveTxt">Menghubungkan</span></span>
+      <button class="btn" id="logoutBtn" hidden>Keluar</button>
+    </div>
+  </div>
+
+  <div class="card" id="gate" style="text-align:center;padding:32px 16px">
+    <p id="gateMsg" style="margin:0 0 14px">Memuat…</p>
+    <button class="btn pri" id="loginBtn" hidden>Masuk dengan Google</button>
+  </div>
+
+  <div class="note" id="note" hidden></div>
+
+  <div class="layout" id="app" hidden>
+    <aside class="side" aria-label="Pilih bulan">
+      <div class="yr"><button id="py" aria-label="Tahun sebelumnya">‹</button><span class="num" id="yv"></span><button id="ny" aria-label="Tahun berikutnya">›</button></div>
+      <div class="months" id="months"></div>
+    </aside>
+
+    <div class="main">
+      <div class="row top">
+        <div class="stack">
+          <div class="card wide"><p class="lbl">Saldo (semua waktu)</p><p class="big" id="kBal"></p><p class="sm">Total pemasukan dikurangi pengeluaran</p></div>
+          <div class="card"><p class="lbl" id="kIncL">Pemasukan</p><p class="big" id="kInc"></p></div>
+          <div class="card"><p class="lbl" id="kExpL">Pengeluaran</p><p class="big" id="kExp"></p><div class="meter" id="budM" hidden><i id="budB"></i></div><p class="sm" id="budT"></p></div>
+        </div>
+        <div class="card">
+          <h2>Pemasukan dan pengeluaran per bulan</h2>
+          <div id="chart"></div>
+          <div class="legend"><span><b style="background:var(--inc)"></b>Pemasukan</span><span><b style="background:var(--exp)"></b>Pengeluaran</span></div>
+        </div>
+      </div>
+
+      <div class="card"><h2>Sumber pemasukan</h2><div class="srcs" id="srcs"></div></div>
+      <div class="card"><h2>Pengeluaran per kategori</h2><div class="tiles" id="tiles"></div></div>
+
+      <div class="card" id="formCard">
+        <h2>Catat transaksi</h2>
+        <form id="form">
+          <label>Jenis<div class="seg" role="group" aria-label="Jenis transaksi"><button type="button" id="tExp" aria-pressed="true">Pengeluaran</button><button type="button" id="tInc" aria-pressed="false">Pemasukan</button></div></label>
+          <label for="fDate">Tanggal<input id="fDate" type="date" required></label>
+          <label for="fCat">Kategori<select id="fCat"></select></label>
+          <label for="fNote">Keterangan<input id="fNote" type="text" maxlength="60" placeholder="mis. makan siang"></label>
+          <label for="fAmt">Jumlah (Rp)<input id="fAmt" type="number" min="1" step="1" inputmode="numeric" required placeholder="25000"></label>
+          <button class="btn pri" type="submit">Tambah</button>
+        </form>
+      </div>
+
+      <div class="card">
+        <div class="head">
+          <h2 style="margin:0">Transaksi</h2>
+          <div class="ctl">
+            <label for="fltCat" class="sm">Kategori</label><select id="fltCat"></select>
+            <label for="budIn" class="sm">Anggaran bulanan</label><input id="budIn" type="number" min="0" step="100000" style="width:130px" inputmode="numeric">
+          </div>
+        </div>
+        <div class="tablewrap"><table>
+          <thead><tr><th>Tanggal</th><th>Kategori</th><th>Keterangan</th><th>Dicatat oleh</th><th class="r">Jumlah</th><th></th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table></div>
+        <div class="empty" id="empty" hidden>Belum ada transaksi pada periode ini. Tambahkan lewat form di atas.</div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="tip" id="tip" hidden></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getFirestore, collection, doc, addDoc, setDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { firebaseConfig } from "./firebase-config.js";
+const EXP=[["Makanan","--c1"],["Transport","--c2"],["Belanja","--c3"],["Tagihan","--c4"],["Hiburan","--c5"],["Kesehatan","--c6"],["Lainnya","--c7"]];
+const INC=["Gaji","Usaha","Freelance","Investasi","Lainnya"];
+const BLN=["Jan","Feb","Mar","Apr","Mei","Jun","Jul","Agu","Sep","Okt","Nov","Des"];
+const BLN_FULL=["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
+const $=id=>document.getElementById(id);
+const pad=n=>String(n).padStart(2,"0");
+const rp=n=>"Rp "+Math.round(n).toLocaleString("id-ID");
+const short=n=>n>=1e6?(n/1e6).toFixed(n%1e6?1:0).replace(".",",")+" jt":n>=1e3?Math.round(n/1e3)+" rb":String(Math.round(n));
+const esc=s=>String(s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const now=new Date(), todayStr=`${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
+
+let items=[], budget=0, year=now.getFullYear(), month=now.getMonth(); // month null = seluruh tahun
+let type="exp", uid=null, canWrite=true, names={}, store=null, userNS=null;
+
+const expColor=c=>`var(${(EXP.find(x=>x[0]===c)||EXP[6])[1]})`;
+const inPeriod=i=>{const y=+i.date.slice(0,4),m=+i.date.slice(5,7)-1;return y===year&&(month===null||m===month)};
+const sum=a=>a.reduce((s,i)=>s+i.amt,0);
+
+/* ---------- penyimpanan: db bersama (realtime), atau lokal bila tidak tersedia ---------- */
+
+/* ---------- penyimpanan: Firebase Firestore (realtime) + login Google ---------- */
+let unsubs=[];
+function showGate(msg,showBtn){
+  $("gate").hidden=false;$("app").hidden=true;$("note").hidden=true;$("logoutBtn").hidden=true;
+  $("gateMsg").textContent=msg;$("loginBtn").hidden=!showBtn;
+}
+function initStore(){
+  if(!firebaseConfig||!firebaseConfig.apiKey||firebaseConfig.apiKey.startsWith("ISI")){
+    setLive(false,"Belum dikonfigurasi");
+    showGate("Firebase belum diatur. Isi file firebase-config.js mengikuti PANDUAN.md.",false);return;
+  }
+  const app=initializeApp(firebaseConfig), auth=getAuth(app), fs=getFirestore(app);
+  $("loginBtn").onclick=()=>signInWithPopup(auth,new GoogleAuthProvider()).catch(()=>setLive(false,"Login dibatalkan"));
+  $("logoutBtn").onclick=()=>signOut(auth);
+  onAuthStateChanged(auth,user=>{
+    unsubs.forEach(u=>u());unsubs=[];
+    if(!user){items=[];budget=0;uid=null;isReady=false;setLive(false,"Belum masuk");showGate("Masuk dengan akun Google yang sudah didaftarkan untuk melihat data.",true);return}
+    uid=user.uid;
+    const who=user.displayName||user.email||"Anggota";
+    store={
+      add:o=>addDoc(collection(fs,"tx"),{...o,by:uid,byName:who}),
+      del:id=>deleteDoc(doc(fs,"tx",id)),
+      setBudget:b=>setDoc(doc(fs,"meta","settings"),{budget:b})
+    };
+    const fail=e=>{
+      if(e&&e.code==="permission-denied"){isReady=false;setLive(false,"Akses ditolak");showGate("Email "+(user.email||"")+" belum diizinkan. Minta pemilik menambahkannya ke aturan keamanan.",false);$("logoutBtn").hidden=false}
+      else setLive(false,"Tidak tersambung");
+    };
+    $("gate").hidden=true;$("app").hidden=false;$("logoutBtn").hidden=false;
+    setLive(true,"Realtime · "+who);
+    unsubs.push(onSnapshot(collection(fs,"tx"),s=>{items=s.docs.map(d=>({id:d.id,...d.data()}));isReady=true;render()},fail));
+    unsubs.push(onSnapshot(doc(fs,"meta","settings"),s=>{budget=(s.exists()&&s.data().budget)||0;render()},()=>{}));
+  });
+}
+function setLive(on,t){$("live").className="live"+(on?"":" off");$("liveTxt").textContent=t}
+let isReady=false;
+
+/* ---------- tampilan ---------- */
+function render(){
+  $("yv").textContent=year;
+  $("months").innerHTML=`<button class="mb" data-m="all" aria-pressed="${month===null}">Semua</button>`+
+    BLN.map((b,i)=>`<button class="mb" data-m="${i}" aria-pressed="${month===i}">${b}</button>`).join("");
+  const label=month===null?`Tahun ${year}`:`${BLN_FULL[month]} ${year}`;
+  $("sub").textContent=isReady?`${label} · ${items.length} transaksi tercatat`:"Memuat…";
+
+  const per=items.filter(inPeriod), inc=per.filter(i=>i.type==="inc"), exp=per.filter(i=>i.type!=="inc");
+  const allInc=sum(items.filter(i=>i.type==="inc")), allExp=sum(items.filter(i=>i.type!=="inc"));
+  $("kBal").textContent=rp(allInc-allExp);
+  $("kIncL").textContent="Pemasukan · "+(month===null?year:BLN[month]);
+  $("kExpL").textContent="Pengeluaran · "+(month===null?year:BLN[month]);
+  $("kInc").textContent=rp(sum(inc));
+  $("kExp").textContent=rp(sum(exp));
+  const te=sum(exp);
+  if(month!==null&&budget){const p=te/budget*100;$("budM").hidden=false;$("budB").style.width=Math.min(100,p)+"%";$("budB").className=p>100?"over":"";
+    $("budT").textContent=p>100?`Melebihi anggaran ${rp(te-budget)}`:`${p.toFixed(0)}% dari anggaran, sisa ${rp(budget-te)}`}
+  else{$("budM").hidden=true;$("budT").textContent=month===null?"Pilih satu bulan untuk melihat anggaran":"Anggaran bulanan belum diatur"}
+  $("budIn").value=budget||"";
+
+  // sumber pemasukan
+  const srcs=INC.map(c=>[c,sum(inc.filter(i=>i.cat===c))]).filter(x=>x[1]>0).sort((a,b)=>b[1]-a[1]);
+  $("srcs").innerHTML=srcs.length?srcs.map(([c,v])=>`<div class="src"><span class="lbl">${c}</span><span class="num" style="font-size:16px">${rp(v)}</span></div>`).join(""):'<div class="empty">Belum ada pemasukan pada periode ini.</div>';
+
+  // kategori pengeluaran
+  const cats=EXP.map(([c])=>[c,sum(exp.filter(i=>i.cat===c))]).filter(x=>x[1]>0).sort((a,b)=>b[1]-a[1]);
+  const palette=["#0d9488","#3cc7c0","#f2b705","#9db8f0","#f09a86","#c1a6e6","#b4c2bd"];
+  $("tiles").innerHTML=cats.length?cats.map(([c,v],k)=>`<div class="tile" style="background:${["var(--c1)","var(--c2)","var(--c3)","var(--c4)","var(--c5)","var(--c6)","var(--c7)"][EXP.findIndex(x=>x[0]===c)]}"><div class="t">${c}</div><div class="v">${rp(v)}</div><div class="p">${(v/te*100).toFixed(0)}% dari pengeluaran</div></div>`).join(""):'<div class="empty">Belum ada pengeluaran pada periode ini.</div>';
+
+  drawChart();
+  drawRows(per);
+}
+
+function drawChart(){
+  const mi=Array(12).fill(0), me=Array(12).fill(0);
+  items.forEach(i=>{if(+i.date.slice(0,4)!==year)return;const m=+i.date.slice(5,7)-1;(i.type==="inc"?mi:me)[m]+=i.amt});
+  const W=620,H=230,L=46,R=10,T=10,B=24,pw=W-L-R,ph=H-T-B;
+  const mx=Math.max(...mi,...me,1);
+  const step=[50e3,100e3,250e3,500e3,1e6,2e6,5e6,1e7].find(s=>mx/s<=5)||2e7;
+  const top=Math.ceil(mx/step)*step,n=top/step;
+  const X=i=>L+pw*(i+.5)/12, Y=v=>T+ph-ph*v/top;
+  let g="";
+  for(let k=0;k<=n;k++){const y=T+ph-ph*k/n;g+=`<line x1="${L}" x2="${W-R}" y1="${y}" y2="${y}" stroke="var(--grid)"/><text x="${L-6}" y="${y+3}" text-anchor="end">${k?short(step*k):0}</text>`}
+  const line=(a,c)=>`<polyline fill="none" stroke="${c}" stroke-width="2" stroke-linejoin="round" points="${a.map((v,i)=>X(i)+","+Y(v)).join(" ")}"/>`;
+  let sel="";
+  if(month!==null)sel=`<line x1="${X(month)}" x2="${X(month)}" y1="${T}" y2="${T+ph}" stroke="var(--muted)" stroke-dasharray="3 3"/><circle cx="${X(month)}" cy="${Y(mi[month])}" r="4" fill="var(--inc)" stroke="var(--surface)" stroke-width="2"/><circle cx="${X(month)}" cy="${Y(me[month])}" r="4" fill="var(--exp)" stroke="var(--surface)" stroke-width="2"/>`;
+  let lab="",hit="";
+  BLN.forEach((b,i)=>{lab+=`<text x="${X(i)}" y="${H-6}" text-anchor="middle">${b}</text>`;
+    hit+=`<rect class="hit" data-i="${i}" x="${L+pw*i/12}" y="${T}" width="${pw/12}" height="${ph}" fill="transparent"/>`});
+  $("chart").innerHTML=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Grafik garis pemasukan dan pengeluaran per bulan">${g}${lab}${line(mi,"var(--inc)")}${line(me,"var(--exp)")}${sel}${hit}</svg>`;
+  $("chart").querySelectorAll(".hit").forEach(r=>{
+    const i=+r.dataset.i;
+    r.addEventListener("mousemove",e=>{const t=$("tip");t.innerHTML=`<b>${BLN_FULL[i]} ${year}</b><br>Pemasukan ${rp(mi[i])}<br>Pengeluaran ${rp(me[i])}`;t.hidden=false;t.style.left=Math.min(e.clientX+12,innerWidth-200)+"px";t.style.top=(e.clientY+14)+"px"});
+    r.addEventListener("mouseleave",()=>$("tip").hidden=true);
+    r.addEventListener("click",()=>{month=i;render()});
+  });
+}
+
+function drawRows(per){
+  const f=$("fltCat").value;
+  const list=per.filter(i=>!f||i.cat===f).sort((a,b)=>b.date.localeCompare(a.date)||(b.ts||0)-(a.ts||0));
+  $("empty").hidden=list.length>0;
+  $("rows").innerHTML=list.map(i=>{const inc=i.type==="inc";
+    return `<tr><td class="num">${i.date.slice(8)}/${i.date.slice(5,7)}</td>
+    <td><span class="chip"><span class="sw" style="background:${inc?"var(--inc)":expColor(i.cat)}"></span>${esc(i.cat)}</span></td>
+    <td>${esc(i.note)}${i.sample?' <span class="tag">contoh</span>':""}</td>
+    <td>${esc(i.by&&i.by===uid?"Anda":(i.byName||""))}</td>
+    <td class="r num ${inc?"in":"out"}">${inc?"+":"−"}${rp(i.amt)}</td>
+    <td class="r">${canWrite?`<button class="x" data-id="${esc(i.id)}" aria-label="Hapus transaksi">✕</button>`:""}</td></tr>`}).join("");
+  const hasSample=items.some(i=>i.sample);
+  const n=$("note");
+  if(isReady&&items.length===0&&canWrite){n.hidden=false;n.innerHTML='<span>Belum ada data. Catat transaksi pertama, atau isi dulu dengan data contoh.</span><button class="btn" id="seed">Isi data contoh</button>'}
+  else if(hasSample&&canWrite){n.hidden=false;n.innerHTML='<span>Sebagian data adalah contoh.</span><button class="btn" id="unseed">Hapus data contoh</button>'}
+  else if(!canWrite){n.hidden=false;n.textContent="Anda hanya bisa melihat. Minta pemilik memberi akses Contributor agar bisa mengedit."}
+  else n.hidden=true;
+}
+
+function setType(t){type=t;$("tExp").setAttribute("aria-pressed",t==="exp");$("tInc").setAttribute("aria-pressed",t==="inc");
+  $("fCat").innerHTML=(t==="exp"?EXP.map(x=>x[0]):INC).map(c=>`<option>${c}</option>`).join("")}
+
+async function seedData(){
+  let seed=11;const r=()=>(seed=(seed*9301+49297)%233280)/233280;
+  const out=[];const y=now.getFullYear();
+  for(let m=0;m<=now.getMonth();m++){
+    const days=m===now.getMonth()?now.getDate():new Date(y,m+1,0).getDate();
+    const d=n=>`${y}-${pad(m+1)}-${pad(n)}`;
+    out.push({date:d(1),type:"inc",cat:"Gaji",note:"Gaji bulanan",amt:9000000});
+    if(days>=12)out.push({date:d(12),type:"inc",cat:"Freelance",note:"Proyek desain",amt:Math.round(800+r()*1500)*1000});
+    if(days>=3)out.push({date:d(3),type:"exp",cat:"Tagihan",note:"Listrik",amt:450000});
+    if(days>=5)out.push({date:d(5),type:"exp",cat:"Tagihan",note:"Internet",amt:350000});
+    for(let k=1;k<=days;k++){
+      if(r()<.8)out.push({date:d(k),type:"exp",cat:"Makanan",note:["Makan siang","Kopi","Warteg"][Math.floor(r()*3)],amt:Math.round((15+r()*55)*1000/1000)*1000});
+      if(r()<.35)out.push({date:d(k),type:"exp",cat:"Transport",note:"Ojek online",amt:Math.round((12+r()*40))*1000});
+      if(r()<.12)out.push({date:d(k),type:"exp",cat:"Belanja",note:"Belanja",amt:Math.round((50+r()*300))*1000});
+      if(r()<.06)out.push({date:d(k),type:"exp",cat:"Hiburan",note:"Bioskop",amt:Math.round(50+r()*100)*1000});
+    }
+  }
+  for(const o of out){await store.add({...o,sample:true,by:uid,ts:Date.now()})}
+}
+
+/* ---------- interaksi ---------- */
+$("months").addEventListener("click",e=>{const b=e.target.closest(".mb");if(!b)return;month=b.dataset.m==="all"?null:+b.dataset.m;render()});
+$("py").onclick=()=>{year--;render()};$("ny").onclick=()=>{year++;render()};
+$("tExp").onclick=()=>setType("exp");$("tInc").onclick=()=>setType("inc");
+$("fltCat").addEventListener("change",()=>render());
+$("form").addEventListener("submit",async e=>{
+  e.preventDefault();
+  const amt=Math.round(+$("fAmt").value);if(!(amt>0))return;
+  const date=$("fDate").value||todayStr;
+  try{await store.add({date,type,cat:$("fCat").value,note:$("fNote").value.trim(),amt,by:uid,ts:Date.now()})}
+  catch(err){setLive(false,"Gagal menyimpan");if(err&&err.code==="invalid_argument"){canWrite=false;render()}return}
+  year=+date.slice(0,4);month=+date.slice(5,7)-1;
+  $("fAmt").value="";$("fNote").value="";$("fAmt").focus();
+});
+$("rows").addEventListener("click",async e=>{const b=e.target.closest(".x");if(b)try{await store.del(b.dataset.id)}catch(err){}});
+$("budIn").addEventListener("change",async e=>{try{await store.setBudget(Math.max(0,+e.target.value||0))}catch(err){}});
+$("note").addEventListener("click",async e=>{
+  if(e.target.id==="seed"){e.target.disabled=true;await seedData()}
+  if(e.target.id==="unseed"){e.target.disabled=true;for(const i of items.filter(i=>i.sample))await store.del(i.id)}
+});
+
+$("fltCat").innerHTML='<option value="">Semua</option>'+[...new Set([...EXP.map(x=>x[0]),...INC])].map(c=>`<option>${c}</option>`).join("");
+$("fDate").value=todayStr;
+setType("exp");render();initStore();
+</script>

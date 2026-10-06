@@ -1,0 +1,19 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Hanya email Google di daftar ini yang boleh membaca dan menulis.
+    function diizinkan() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.email in [
+          "vicodanif@gmail.com",
+          "petronampauso@gmail.com"
+        ];
+    }
+
+    match /{document=**} {
+      allow read, write: if diizinkan();
+    }
+  }
+}
