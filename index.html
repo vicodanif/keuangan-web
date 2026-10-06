@@ -202,7 +202,19 @@ function initStore(){
     showGate("Firebase belum diatur. Isi file firebase-config.js mengikuti PANDUAN.md.",false);return;
   }
   const app=initializeApp(firebaseConfig), auth=getAuth(app), fs=getFirestore(app);
-  $("loginBtn").onclick=()=>signInWithPopup(auth,new GoogleAuthProvider()).catch(()=>setLive(false,"Login dibatalkan"));
+  $("loginBtn").onclick=()=>signInWithPopup(auth,new GoogleAuthProvider()).catch(e=>{
+    const c=(e&&e.code)||"error";
+    const pesan={
+      "auth/unauthorized-domain":"Domain website ini belum ditambahkan di Firebase (Authentication > Settings > Authorized domains).",
+      "auth/popup-blocked":"Popup login diblokir browser. Izinkan popup untuk situs ini, lalu coba lagi.",
+      "auth/popup-closed-by-user":"Jendela login ditutup sebelum selesai. Coba lagi dan selesaikan pilihan akun.",
+      "auth/cancelled-popup-request":"Login dibatalkan. Coba klik sekali saja lalu tunggu jendelanya muncul.",
+      "auth/operation-not-allowed":"Login Google belum diaktifkan di Firebase Authentication.",
+      "auth/invalid-api-key":"apiKey di firebase-config.js salah.",
+      "auth/network-request-failed":"Koneksi internet bermasalah."
+    }[c]||("Login gagal: "+c);
+    setLive(false,"Login gagal");$("gateMsg").textContent=pesan+" ["+c+"]";
+  });
   $("logoutBtn").onclick=()=>signOut(auth);
   onAuthStateChanged(auth,user=>{
     unsubs.forEach(u=>u());unsubs=[];
