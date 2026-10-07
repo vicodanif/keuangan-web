@@ -92,6 +92,9 @@ td{padding:8px;border-bottom:1px solid var(--grid)}
 .ctl{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .note{font-size:12.5px;color:var(--ink2);background:var(--brand-soft);border-radius:8px;padding:8px 12px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center}
 .tag{font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:4px;padding:0 5px}
+.re{border:1px solid var(--line);border-radius:99px;padding:2px 10px;font-size:12px;cursor:pointer;background:var(--surface);white-space:nowrap}
+.re.belum{color:var(--bad);border-color:var(--bad)}
+.re.sudah{color:var(--good);border-color:var(--good)}
 .tip{position:fixed;pointer-events:none;background:var(--ink);color:var(--bg);padding:6px 10px;border-radius:5px;font-size:12px;z-index:5;line-height:1.5}
 </style>
 
@@ -120,6 +123,7 @@ td{padding:8px;border-bottom:1px solid var(--grid)}
     <div class="main">
       <div class="row top">
         <div class="stack">
+          <div class="card wide" id="reCard"><p class="lbl">Reimburse (semua waktu)</p><p class="big" id="kRe"></p><p class="sm" id="kReSub"></p></div>
           <div class="card wide"><p class="lbl">Saldo (semua waktu)</p><p class="big" id="kBal"></p><p class="sm">Total pemasukan dikurangi pengeluaran</p></div>
           <div class="card"><p class="lbl" id="kIncL">Pemasukan</p><p class="big" id="kInc"></p></div>
           <div class="card"><p class="lbl" id="kExpL">Pengeluaran</p><p class="big" id="kExp"></p><div class="meter" id="budM" hidden><i id="budB"></i></div><p class="sm" id="budT"></p></div>
@@ -142,6 +146,7 @@ td{padding:8px;border-bottom:1px solid var(--grid)}
           <label for="fCat">Kategori<select id="fCat"></select></label>
           <label for="fNote">Keterangan<input id="fNote" type="text" maxlength="60" placeholder="mis. makan siang"></label>
           <label for="fAmt">Jumlah (Rp)<input id="fAmt" type="number" min="1" step="1" inputmode="numeric" required placeholder="25000"></label>
+          <label for="fReimb" id="reimbWrap" style="flex-direction:row;align-items:center;gap:8px;color:var(--ink)"><input id="fReimb" type="checkbox" style="width:auto"> Perlu di-reimburse</label>
           <button class="btn pri" type="submit">Tambah</button>
         </form>
       </div>
@@ -151,11 +156,13 @@ td{padding:8px;border-bottom:1px solid var(--grid)}
           <h2 style="margin:0">Transaksi</h2>
           <div class="ctl">
             <label for="fltCat" class="sm">Kategori</label><select id="fltCat"></select>
+            <label for="fltRe" class="sm">Reimburse</label>
+            <select id="fltRe"><option value="">Semua</option><option value="belum">Belum</option><option value="sudah">Sudah</option><option value="tidak">Tanpa reimburse</option></select>
             <label for="budIn" class="sm">Anggaran bulanan</label><input id="budIn" type="number" min="0" step="100000" style="width:130px" inputmode="numeric">
           </div>
         </div>
         <div class="tablewrap"><table>
-          <thead><tr><th>Tanggal</th><th>Kategori</th><th>Keterangan</th><th>Dicatat oleh</th><th class="r">Jumlah</th><th></th></tr></thead>
+          <thead><tr><th>Tanggal</th><th>Kategori</th><th>Keterangan</th><th>Dicatat oleh</th><th class="r">Jumlah</th><th>Reimburse</th><th></th></tr></thead>
           <tbody id="rows"></tbody>
         </table></div>
         <div class="empty" id="empty" hidden>Belum ada transaksi pada periode ini. Tambahkan lewat form di atas.</div>
@@ -168,7 +175,7 @@ td{padding:8px;border-bottom:1px solid var(--grid)}
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { getFirestore, collection, doc, addDoc, setDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getFirestore, collection, doc, addDoc, setDoc, updateDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { firebaseConfig } from "./firebase-config.js";
 const EXP=[["Makanan","--c1"],["Transport","--c2"],["Belanja","--c3"],["Tagihan","--c4"],["Hiburan","--c5"],["Kesehatan","--c6"],["Lainnya","--c7"]];
 const INC=["Gaji","Usaha","Freelance","Investasi","Lainnya"];
@@ -224,6 +231,7 @@ function initStore(){
     store={
       add:o=>addDoc(collection(fs,"tx"),{...o,by:uid,byName:who}),
       del:id=>deleteDoc(doc(fs,"tx",id)),
+      setReimb:(id,v)=>updateDoc(doc(fs,"tx",id),{reimb:v}),
       setBudget:b=>setDoc(doc(fs,"meta","settings"),{budget:b})
     };
     const fail=e=>{
@@ -270,6 +278,7 @@ function render(){
   $("tiles").innerHTML=cats.length?cats.map(([c,v],k)=>`<div class="tile" style="background:${["var(--c1)","var(--c2)","var(--c3)","var(--c4)","var(--c5)","var(--c6)","var(--c7)"][EXP.findIndex(x=>x[0]===c)]}"><div class="t">${c}</div><div class="v">${rp(v)}</div><div class="p">${(v/te*100).toFixed(0)}% dari pengeluaran</div></div>`).join(""):'<div class="empty">Belum ada pengeluaran pada periode ini.</div>';
 
   drawChart();
+  drawReimb();
   drawRows(per);
 }
 
@@ -299,8 +308,8 @@ function drawChart(){
 }
 
 function drawRows(per){
-  const f=$("fltCat").value;
-  const list=per.filter(i=>!f||i.cat===f).sort((a,b)=>b.date.localeCompare(a.date)||(b.ts||0)-(a.ts||0));
+  const f=$("fltCat").value, fr=$("fltRe").value;
+  const list=per.filter(i=>(!f||i.cat===f)&&(!fr||(fr==="tidak"?!i.reimb:i.reimb===fr))).sort((a,b)=>b.date.localeCompare(a.date)||(b.ts||0)-(a.ts||0));
   $("empty").hidden=list.length>0;
   $("rows").innerHTML=list.map(i=>{const inc=i.type==="inc";
     return `<tr><td class="num">${i.date.slice(8)}/${i.date.slice(5,7)}</td>
@@ -308,6 +317,7 @@ function drawRows(per){
     <td>${esc(i.note)}${i.sample?' <span class="tag">contoh</span>':""}</td>
     <td>${esc(i.by&&i.by===uid?"Anda":(i.byName||""))}</td>
     <td class="r num ${inc?"in":"out"}">${inc?"+":"−"}${rp(i.amt)}</td>
+    <td>${i.reimb?`<button class="re ${i.reimb}" data-id="${esc(i.id)}" data-v="${i.reimb}" aria-label="Ubah status reimburse">${i.reimb==="sudah"?"✓ Sudah":"● Belum"}</button>`:'<span class="sm">-</span>'}</td>
     <td class="r">${canWrite?`<button class="x" data-id="${esc(i.id)}" aria-label="Hapus transaksi">✕</button>`:""}</td></tr>`}).join("");
   const hasSample=items.some(i=>i.sample);
   const n=$("note");
@@ -317,7 +327,13 @@ function drawRows(per){
   else n.hidden=true;
 }
 
-function setType(t){type=t;$("tExp").setAttribute("aria-pressed",t==="exp");$("tInc").setAttribute("aria-pressed",t==="inc");
+function drawReimb(){
+  const r=items.filter(i=>i.reimb);
+  const belum=r.filter(i=>i.reimb==="belum"), sudah=r.filter(i=>i.reimb==="sudah");
+  $("kRe").textContent=rp(sum(belum))+" belum";
+  $("kReSub").textContent=r.length?`${belum.length} transaksi menunggu · sudah diganti ${rp(sum(sudah))} (${sudah.length})`:"Belum ada transaksi yang ditandai perlu di-reimburse";
+}
+function setType(t){type=t;$("reimbWrap").hidden=t!=="exp";if(t!=="exp")$("fReimb").checked=false;$("tExp").setAttribute("aria-pressed",t==="exp");$("tInc").setAttribute("aria-pressed",t==="inc");
   $("fCat").innerHTML=(t==="exp"?EXP.map(x=>x[0]):INC).map(c=>`<option>${c}</option>`).join("")}
 
 async function seedData(){
@@ -349,12 +365,18 @@ $("form").addEventListener("submit",async e=>{
   e.preventDefault();
   const amt=Math.round(+$("fAmt").value);if(!(amt>0))return;
   const date=$("fDate").value||todayStr;
-  try{await store.add({date,type,cat:$("fCat").value,note:$("fNote").value.trim(),amt,by:uid,ts:Date.now()})}
+  const rec={date,type,cat:$("fCat").value,note:$("fNote").value.trim(),amt,by:uid,ts:Date.now()};
+  if(type==="exp"&&$("fReimb").checked)rec.reimb="belum";
+  try{await store.add(rec)}
   catch(err){setLive(false,"Gagal menyimpan");if(err&&err.code==="invalid_argument"){canWrite=false;render()}return}
   year=+date.slice(0,4);month=+date.slice(5,7)-1;
-  $("fAmt").value="";$("fNote").value="";$("fAmt").focus();
+  $("fAmt").value="";$("fNote").value="";$("fReimb").checked=false;$("fAmt").focus();
 });
-$("rows").addEventListener("click",async e=>{const b=e.target.closest(".x");if(b)try{await store.del(b.dataset.id)}catch(err){}});
+$("rows").addEventListener("click",async e=>{
+  const re=e.target.closest(".re");
+  if(re&&canWrite){try{await store.setReimb(re.dataset.id,re.dataset.v==="sudah"?"belum":"sudah")}catch(err){}return}
+  const b=e.target.closest(".x");if(b)try{await store.del(b.dataset.id)}catch(err){}});
+$("fltRe").addEventListener("change",()=>render());
 $("budIn").addEventListener("change",async e=>{try{await store.setBudget(Math.max(0,+e.target.value||0))}catch(err){}});
 $("note").addEventListener("click",async e=>{
   if(e.target.id==="seed"){e.target.disabled=true;await seedData()}
